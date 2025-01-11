@@ -1,0 +1,131 @@
+Dockerfile funzionante:
+# Usa l'immagine base ufficiale di ROS 2 Humble
+FROM ros:humble
+
+# Imposta l'ambiente per evitare input interattivi durante l'installazione
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Aggiorna i pacchetti e installa dipendenze generali
+RUN apt update && apt upgrade -y && apt install -y \
+    lsb-release \
+    gnupg2 \
+    curl \
+    build-essential \
+    software-properties-common \
+    x11-apps \
+    mesa-utils \
+    net-tools \
+    iputils-ping \
+    nano \
+    sudo \
+    python3-pip
+
+# Aggiungi il repository per Gazebo
+RUN sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list' && \
+    curl -sSL http://packages.osrfoundation.org/gazebo.key | apt-key add -
+
+# Installa ROS 2 pacchetti per Gazebo, TurtleBot3 e teleop
+RUN apt update && apt install -y \
+    ros-humble-gazebo-ros-pkgs \
+    ros-humble-turtlebot3 \
+    ros-humble-turtlebot3-gazebo \
+    ros-humble-turtlebot3-simulations \
+    ros-humble-teleop-twist-keyboard
+
+# Installa le dipendenze Python
+RUN pip install --no-cache-dir \
+    aiortc \
+    requests \
+    keyboard \
+    flask
+
+# Imposta il modello TurtleBot3 (può essere modificato a burger, waffle, waffle_pi)
+ENV TURTLEBOT3_MODEL=burger
+
+# Imposta il ROS 2 locale per Humble
+SHELL ["/bin/bash", "-c"]
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+
+# Imposta il forwarding X11 per la GUI di Gazebo
+ENV DISPLAY=:0
+ENV QT_X11_NO_MITSHM=1
+
+# Imposta il comando di default per entrare nel bash shell
+CMD ["bash"]
+
+
+
+Istruzione per runnare:
+docker run -it --rm   --env="DISPLAY=$DISPLAY"   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw"   --privileged   ros2-humble-turtlebot3
+
+
+
+Dentro Ros2 per runnare turtlebot3:
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+(Al primo avvio di gazebo non appare il turlebot3. Se chiudo gazebo, termino il processo con CTRL+C e riavvio funziona. Se al posto di CTRL+C uso CTRL+Z non funziona)
+
+
+
+In un altro nodo, per il controllo da tastiera:
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+
+
+
+
+Per accedere alle istruzioni di teleop_twist_keyboard:
+nano /opt/ros/humble/lib/teleop_twist_keyboard/teleop_twist_keyboard
+
+
+
+Per resettare la simulazione, in un nodo libero:
+ros2 service call /reset_simulation std_srvs/srv/Empty
+
+
+
+Codice per un semplice controllo del robot, simile a teleop_twist_keyboard:
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+
+class TurtleBot3Controller(Node):
+    def __init__(self):
+        super().__init__('turtlebot3_controller')
+        self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.twist = Twist()
+        self.get_logger().info("TurtleBot3 Controller avviato. Usa WASD per muoverti, Q per uscire.")
+
+    def set_velocity(self, linear, angular):
+        self.twist.linear.x = linear
+        self.twist.angular.z = angular
+        self.publisher.publish(self.twist)
+
+def main():
+    rclpy.init()
+    node = TurtleBot3Controller()
+
+    try:
+        while rclpy.ok():
+            key = input("Inserisci comando (W/A/S/D per muoverti, Q per uscire): ").lower()
+            if key == 'w':
+                node.set_velocity(0.5, 0.0)  # Avanti
+            elif key == 's':
+                node.set_velocity(-0.5, 0.0)  # Indietro
+            elif key == 'a':
+                node.set_velocity(0.0, 1.0)  # Ruota a sinistra
+            elif key == 'd':
+                node.set_velocity(0.0, -1.0)  # Ruota a destra
+            elif key == 'q':
+                print("Uscita...")
+                break
+            else:
+                print("Comando non valido. Usa WASD per controllare il robot.")
+                node.set_velocity(0.0, 0.0)  # Ferma il robot
+    except KeyboardInterrupt:
+        print("Interrotto dall'utente.")
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+
