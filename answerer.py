@@ -1,6 +1,8 @@
 import requests
 from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 import asyncio
+import sys
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -29,17 +31,25 @@ SIGNALING_SERVER_URL = 'http://'+ip+':'+port
 ID = "answerer01"
 
 def rob_command(key, node):
-    if key == 'w':
-        node.set_velocity(0.5, 0.0)  # Avanti
-    elif key == 's':
-        node.set_velocity(-0.5, 0.0)  # Indietro
-    elif key == 'a':
-        node.set_velocity(0.0, 1.0)  # Ruota a sinistra
-    elif key == 'd':
-        node.set_velocity(0.0, -1.0)  # Ruota a destra
-    else:
-        print("Comando non valido. Usa WASD per controllare il robot.")
-        node.set_velocity(0.0, 0.0)  # Ferma il robot
+    if key.__len__() == 1:
+        if key == 'w':
+            node.set_velocity(0.5, 0.0)  # Avanti
+            command = "Avanti"
+        elif key == 's':
+            node.set_velocity(-0.5, 0.0)  # Indietro
+            command = "Indietro"
+        elif key == 'a':
+            node.set_velocity(0.0, 1.0)  # Ruota a sinistra
+            command = "Ruota a sinistra"
+        elif key == 'd':
+            node.set_velocity(0.0, -1.0)  # Ruota a destra
+            command = "Ruota a destra"
+        else:
+            node.set_velocity(0.0, 0.0)  # Ferma il robot
+            command = "non valido"
+        sys.stdout.write("\033[F")  # Torna su una riga
+        sys.stdout.write("\033[K")  # Cancella la riga
+        print("Comando ricevuto: "+command)
 
 
 async def main():
@@ -49,15 +59,36 @@ async def main():
     rclpy.init()
     node = TurtleBot3Controller()
 
+    async def send_keep_alive(channel):
+        while True:
+            await asyncio.sleep(3)  # Invia un keep-alive ogni 3 secondi
+            if channel.readyState == "open":
+                channel.send("keep-alive")
+
     @peer_connection.on("datachannel")
     def on_datachannel(channel):
         print("Canale aperto!")
         channel.send("Connessione stabilita con peer2!")
+        asyncio.create_task(send_keep_alive(channel))
 
         @channel.on("message")
         async def on_message(message):
             rob_command(message, node)
+        
+    @peer_connection.on("connectionstatechange")
+    async def on_connection_state_change():
+        print("Stato della connessione:", peer_connection.connectionState)
+        if peer_connection.connectionState == "disconnected":
+            print("Connessione temporaneamente persa.")
+        elif peer_connection.connectionState == "failed":
+            print("Connessione fallita.")
+        elif peer_connection.connectionState == "closed":
+            print("Connessione chiusa.")
+        node.set_velocity(0.0, 0.0)
+
     
+    command = " "
+
     resp = requests.get(SIGNALING_SERVER_URL + "/get_offer")
 
     print(resp.status_code)
@@ -72,6 +103,7 @@ async def main():
             r = requests.post(SIGNALING_SERVER_URL + '/answer', data=message)
             print("Canale aperto!")
             while True:
+                
                 await asyncio.sleep(1)
 
 
