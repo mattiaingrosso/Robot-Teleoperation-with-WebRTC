@@ -13,8 +13,6 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
-from gazebo_msgs.srv import SetEntityState
-from gazebo_msgs.msg import ModelState
 from rclpy.executors import MultiThreadedExecutor
 
 
