@@ -2,18 +2,30 @@ from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription, RT
 import json
 import asyncio
 import requests
-import keyboard
 import sys
-import time
+import tty
+import termios
 
-
+def get_key():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        key = sys.stdin.read(1)
+    except KeyboardInterrupt:
+        # Ripristina la modalità terminale in caso di interruzione
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        raise  # Rilancia l'eccezione per gestire Ctrl+C
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return key
 
 
 
 #ip =  input("IP: ")
 #port = input("Port: ")
 
-ip = "192.168.1.177"
+ip = "192.168.1.122"
 port = "6969"
 
 SIGNALING_SERVER_URL = 'http://'+ip+':'+port
@@ -30,22 +42,19 @@ async def main():
 
     async def send_command(channel):
         while True:
-            for key in "abcdefghijklmnopqrstuvwxyz":
-                if keyboard.is_pressed(key):
-                    channel.send(key)
-                    sys.stdout.write("\033[F")  # Torna su una riga
-                    sys.stdout.write("\033[K")  # Cancella la riga
-                    print(f"Comando inviato: {key}")
-                    await asyncio.sleep(0.2)  # Evita spam di invio
-
-            await asyncio.sleep(0.05)  # Breve attesa per evitare un loop eccessivo
+            print("Premi un tasto: ")
+            msg = get_key()
+            channel.send(msg.lower())
+            await asyncio.sleep(0.2) #più piccolo è il tempo, più sensibile è l'input
 
     @channel.on("open")
     def on_open():
         channel.send("Connessione stabilita da peer1!")
         asyncio.ensure_future(send_command(channel))
 
-
+    @channel.on("message")
+    def on_message(message):
+        print("Received via RTC Datachannel", message)
 
 
 
@@ -60,18 +69,12 @@ async def main():
         resp = requests.get(SIGNALING_SERVER_URL + "/get_answer")
         if resp.status_code == 503:
             print("Answer not ready, trying again")
-            sys.stdout.write("\033[F")  # Torna su una riga
-            sys.stdout.write("\033[F")  # Torna su una riga
-            sys.stdout.write("\033[K")  # Cancella la riga
             await asyncio.sleep(1)
         elif resp.status_code == 200:
             data = resp.json()
             if data["type"] == "answer":
                 rd = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
                 await peer_connection.setRemoteDescription(rd)
-                sys.stdout.write("\033[K")  # Cancella la riga
-                sys.stdout.write("\033[F")  # Torna su una riga
-                sys.stdout.write("\033[K")  # Cancella la riga
                 print("Canale aperto!")
                 while True:
                     #print("Ready for Stuff")
