@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry
 from rclpy.executors import MultiThreadedExecutor
 
 # ---- Configurazione
-ip = "192.168.1.194"
+ip = "10.10.11.45"
 port = "6969"
 SIGNALING_SERVER_URL = f'http://{ip}:{port}'
 ID = "answerer01"
@@ -47,6 +47,7 @@ class TurtleBot3Controller(Node):
         else:
             self.get_logger().error("❌ Il servizio di reset del mondo non è disponibile!")
 
+
     def odom_callback(self, msg):
         """Aggiorna posizione e orientazione con una stampa fluida su una sola riga."""
         position = msg.pose.pose.position
@@ -61,11 +62,7 @@ class TurtleBot3Controller(Node):
         sys.stdout.write("\033[2K\r")  # \033[2K cancella la riga, \r torna a inizio riga
 
         # Stampa aggiornamento in tempo reale
-        sys.stdout.write(
-            f"📍 Posizione: x={position.x:.2f}, y={position.y:.2f}, z={position.z:.2f} | "
-            f"🔄 Roll={math.degrees(roll):.2f}°, Pitch={math.degrees(pitch):.2f}°, Yaw={math.degrees(yaw):.2f}° | "
-            f"⌨️ Comando: {self.last_command}   \r"
-        )
+
         sys.stdout.flush()  # Forza l'aggiornamento immediato
 
 #---------------------------------------------------------------------------
@@ -86,7 +83,7 @@ def rob_command(key, node):
             node.reset_robot()
     else:
         velocity, angular, command = 0.0, 0.0, "❌ Comando non valido: STOP"
-        node.get_logger().warn(f"Comando non valido ricevuto: {key}. Il robot si fermerà.")
+
 
     node.set_velocity(velocity, angular)
     node.last_command = command  # L'output sarà aggiornato al prossimo odom_callback
@@ -162,8 +159,12 @@ async def main():
                 requests.post(SIGNALING_SERVER_URL + '/answer', data=message)
 
                 print("✅ Canale WebRTC pronto!")
-                while True:
-                    await asyncio.sleep(0.1)
+                while True: 
+                    print("📍 Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+", z="+format(node.last_position[2], ".2f")+" | 🔄 Roll = "+format(math.degrees(node.last_orientation[0]), ".2f")+"°, Pitch = "+format(math.degrees(node.last_orientation[1]), ".2f")+"°, Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° | ⌨️ Comando: "+str(node.last_command)+" ")
+                    await asyncio.sleep(1)
+                    sys.stdout.write("\033[F")  # Torna su una riga
+                    sys.stdout.write("\033[K")  # Cancella la riga
+                    
     except requests.RequestException as e:
         print(f"❌ Errore di connessione: {e}")
         node.set_velocity(0.0, 0.0)
