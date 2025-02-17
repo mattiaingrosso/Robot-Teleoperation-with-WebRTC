@@ -13,7 +13,7 @@ import time
 #ip =  input("IP: ")
 #port = input("Port: ")
 
-ip = "192.168.1.177"
+ip = "10.10.11.45"
 port = "6969"
 
 SIGNALING_SERVER_URL = 'http://'+ip+':'+port
@@ -23,6 +23,9 @@ ID = "offerer01"
 
 
 async def main():
+
+    odom = ""
+
     print("Starting")
     peer_connection = RTCPeerConnection();
     channel = peer_connection.createDataChannel("chat");
@@ -36,7 +39,7 @@ async def main():
                     sys.stdout.write("\033[F")  # Torna su una riga
                     sys.stdout.write("\033[K")  # Cancella la riga
                     print(f"Comando inviato: {key}")
-                    await asyncio.sleep(0.2)  # Evita spam di invio
+                    
 
             await asyncio.sleep(0.05)  # Breve attesa per evitare un loop eccessivo
 
@@ -46,6 +49,13 @@ async def main():
         asyncio.ensure_future(send_command(channel))
 
 
+        @channel.on("message")
+        async def on_message(odom):
+            print(odom)
+            sys.stdout.write("\033[F")  # Torna su una riga
+            sys.stdout.write("\033[K")  # Cancella la riga
+
+            
 
 
 
@@ -74,8 +84,8 @@ async def main():
                 sys.stdout.write("\033[K")  # Cancella la riga
                 print("Canale aperto!")
                 while True:
-                    #print("Ready for Stuff")
-                    await asyncio.sleep(1)
+                    #print(odom)
+                    await asyncio.sleep(3)
             else:
                 print("Wrong type")
             break
