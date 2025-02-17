@@ -59,7 +59,7 @@ class TurtleBot3Controller(Node):
         self.last_orientation = (roll, pitch, yaw)
 
         # Cancella intera riga precedente
-        sys.stdout.write("\033[2K\r")  # \033[2K cancella la riga, \r torna a inizio riga
+        
 
         # Stampa aggiornamento in tempo reale
 
@@ -113,6 +113,9 @@ def ros_spin_thread(node):
     rclpy.shutdown()
 
 async def main():
+
+    odom = ""
+
     os.system('clear')
     print("🔗 Avvio connessione WebRTC...")
     peer_connection = RTCPeerConnection()
@@ -124,9 +127,9 @@ async def main():
 
     async def send_keep_alive(channel):
         while True:
-            await asyncio.sleep(3)
+            await asyncio.sleep(0.5)
             if channel.readyState == "open":
-                channel.send("keep-alive")
+                channel.send(odom)
 
     @peer_connection.on("datachannel")
     def on_datachannel(channel):
@@ -160,10 +163,12 @@ async def main():
 
                 print("✅ Canale WebRTC pronto!")
                 while True: 
-                    print("📍 Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+", z="+format(node.last_position[2], ".2f")+" | 🔄 Roll = "+format(math.degrees(node.last_orientation[0]), ".2f")+"°, Pitch = "+format(math.degrees(node.last_orientation[1]), ".2f")+"°, Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° | ⌨️ Comando: "+str(node.last_command)+" ")
-                    await asyncio.sleep(1)
+                    odom = "📍 Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+" | 🔄 Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° | ⌨️ Comando: "+str(node.last_command)
+                    print(odom)
+                    await asyncio.sleep(0.1)
                     sys.stdout.write("\033[F")  # Torna su una riga
                     sys.stdout.write("\033[K")  # Cancella la riga
+
                     
     except requests.RequestException as e:
         print(f"❌ Errore di connessione: {e}")
