@@ -61,7 +61,7 @@ class TurtleBot3Controller(Node):
         # Cancella intera riga precedente
         
 
-        # Stampa aggiornamento in tempo reale
+
 
         sys.stdout.flush()  # Forza l'aggiornamento immediato
 
@@ -74,6 +74,7 @@ def rob_command(key, node):
         's': (-0.5, 0.0, "Indietro"),
         'a': (0.0, 1.0, "Ruota a sinistra"),
         'd': (0.0, -1.0, "Ruota a destra"),
+        '@': (0.0, 0.0, node.last_command),
         'r': (0.0, 0.0, "Reset mondo")  # Comando per il reset
     }
 
@@ -82,11 +83,15 @@ def rob_command(key, node):
         if key == 'r':
             node.reset_robot()
     else:
-        velocity, angular, command = 0.0, 0.0, "❌ Comando non valido: STOP"
+        velocity, angular, command = 0.0, 0.0, "❌ non valido: STOP"
+        
 
 
     node.set_velocity(velocity, angular)
     node.last_command = command  # L'output sarà aggiornato al prossimo odom_callback
+
+    
+ 
 
 def quaternion_to_euler(x, y, z, w):
     """Converte un quaternione in angoli RPY (roll, pitch, yaw)."""
@@ -114,7 +119,7 @@ def ros_spin_thread(node):
 
 async def main():
 
-    odom = ""
+    odom = "" #dichiarazione variabile per i dat di odom
 
     os.system('clear')
     print("🔗 Avvio connessione WebRTC...")
@@ -125,9 +130,9 @@ async def main():
     ros_thread = threading.Thread(target=ros_spin_thread, args=(node,))
     ros_thread.start()
 
-    async def send_keep_alive(channel):
+    async def send_rob_data(channel):
         while True:
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.01)
             if channel.readyState == "open":
                 channel.send(odom)
 
@@ -135,12 +140,13 @@ async def main():
     def on_datachannel(channel):
         print("\n✅ Canale aperto!")
         channel.send("Connessione stabilita con peer2!")
-        asyncio.create_task(send_keep_alive(channel))
+        asyncio.create_task(send_rob_data(channel))
 
         @channel.on("message")
         async def on_message(message):
             message = message.strip().lower()
             rob_command(message, node)
+
 
     @peer_connection.on("connectionstatechange")
     async def on_connection_state_change():
@@ -148,6 +154,9 @@ async def main():
         if peer_connection.connectionState in ["disconnected", "failed", "closed"]:
             print("❌ Connessione persa o chiusa. Il robot si fermerà.")
             node.set_velocity(0.0, 0.0)
+
+
+    #Connessione WebRTC
 
     try:
         resp = requests.get(SIGNALING_SERVER_URL + "/get_offer", timeout=5)
@@ -163,9 +172,9 @@ async def main():
 
                 print("✅ Canale WebRTC pronto!")
                 while True: 
-                    odom = "📍 Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+" | 🔄 Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° | ⌨️ Comando: "+str(node.last_command)
+                    odom = "📍Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+" | 🔄Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° |⌨️ Comando: "+str(node.last_command)
                     print(odom)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.01)
                     sys.stdout.write("\033[F")  # Torna su una riga
                     sys.stdout.write("\033[K")  # Cancella la riga
 
@@ -175,6 +184,7 @@ async def main():
         node.set_velocity(0.0, 0.0)
     finally:
         print("\n🛑 Chiusura in corso...")
+        node.set_velocity(0.0, 0.0)
         peer_connection.close()
         rclpy.shutdown()
 
@@ -184,3 +194,4 @@ if __name__ == "__main__":
         loop.run_until_complete(main())
     except KeyboardInterrupt:
         print("\n🛑 Interruzione manuale, chiusura del programma...")
+        
