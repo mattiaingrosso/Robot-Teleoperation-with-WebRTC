@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 import curses
+import time
 
 class InputNode(Node):
     def __init__(self):
@@ -10,6 +11,7 @@ class InputNode(Node):
         self.get_logger().info("✅ Input Node ROS 2 avviato! Premi un tasto per inviarlo, Ctrl+C per uscire")
 
         self.key = None  # Variabile per memorizzare il tasto premuto
+        self.last_time = time.asctime()
 
     def run_teleop(self, stdscr):
         """Loop per leggere i tasti e pubblicarli su /cmd_key."""
@@ -35,13 +37,21 @@ class InputNode(Node):
 
                         # Pubblica il tasto premuto sul topic /cmd_key
                         msg = String()
-                        msg.data = key_char
+                        self.last_time = str(time.asctime())
+                        msg.data = key_char+" "+ self.last_time
                         self.publisher.publish(msg)
-                        stdscr.addstr(1, 0, f"📤 Tasto inviato: {key_char}") #unico modo per stampare, aggiornare manualmente la riga
+                        stdscr.addstr(1, 0, f"📤 Tasto inviato: {msg.data}") #unico modo per stampare, aggiornare manualmente la riga
+
 
                     elif key == 27:  # Se premi ESC (codice ASCII 27)
                         self.get_logger().info("🛑 ESC premuto, uscita...")
                         break  # Esce dal loop se si preme ESC
+
+                else:
+                    msg = String()
+                    msg.data = "@"+self.last_time
+                    self.publisher.publish(msg)
+
 
                 rclpy.spin_once(self, timeout_sec=0.1)  # Gestisce gli eventi ROS2 in modo non bloccante
 
