@@ -20,7 +20,6 @@ class KeySubscriberNode(Node):
 
     def listener_callback(self, msg):
         """Callback per raccogliere i tasti ricevuti e salvarli."""
-        self.get_logger().info(f"📥 Tasto ricevuto: {msg.data}")
         self.received_key = msg.data  # Aggiorna l'ultimo tasto ricevuto
 
     def get_received_key(self):
@@ -29,10 +28,11 @@ class KeySubscriberNode(Node):
 
 
 # Variabili di configurazione per WebRTC
-ip = "10.10.11.44"
+ip = "10.10.11.45"
 port = "6969"
 SIGNALING_SERVER_URL = f'http://{ip}:{port}'
 ID = "offerer01"
+
 
 
 async def main():
@@ -44,30 +44,37 @@ async def main():
     rclpy.init()
     node = KeySubscriberNode()
 
+    last_key = " "
+
     # Funzione per inviare i comandi via WebRTC
-    async def send_command(channel):
+    async def send_command(channel, last_key):
         while True:
             # Ottieni l'ultimo tasto ricevuto dal topic
             key = node.get_received_key()
 
             # Se c'è un tasto ricevuto, invialo tramite il canale WebRTC
-            if key:
-                channel.send(key)
-                sys.stdout.write("\033[F")  # Torna su una riga
-                sys.stdout.write("\033[K")  # Cancella la riga
-                print(f"Comando inviato: {key}")
-            
-            await asyncio.sleep(0.05)  # Breve attesa per evitare un loop eccessivo
+            if len(key) != 0:
+
+                if key != last_key:
+                    
+                    last_key = key
+                    channel.send(key[0])
+                    if key[0] != '@':
+                        sys.stdout.write("\033[F")  # Torna su una riga
+                        sys.stdout.write("\033[K")  # Cancella la riga
+                        print(f"Comando inviato: {key[0]}")
+                
+            await asyncio.sleep(0.01)  # Breve attesa per evitare un loop eccessivo
 
     @channel.on("open")
     def on_open():
         channel.send("Connessione stabilita da peer1!")
-        asyncio.ensure_future(send_command(channel))
+        asyncio.ensure_future(send_command(channel, last_key))
 
     @channel.on("message")
     async def on_message(message):
         # Gestione dei messaggi ricevuti dal peer
-        print(f"Messaggio ricevuto: {message}")
+        print(f"{message}")
         sys.stdout.write("\033[F")  # Torna su una riga
         sys.stdout.write("\033[K")  # Cancella la riga
 
@@ -86,9 +93,9 @@ async def main():
         resp = requests.get(SIGNALING_SERVER_URL + "/get_answer")
         if resp.status_code == 503:
             print("Answer not ready, trying again")
-            sys.stdout.write("\033[F")  # Torna su una riga
-            sys.stdout.write("\033[F")  # Torna su una riga
-            sys.stdout.write("\033[K")  # Cancella la riga
+            #sys.stdout.write("\033[F")  # Torna su una riga
+            #sys.stdout.write("\033[F")  # Torna su una riga
+            #sys.stdout.write("\033[K")  # Cancella la riga
             await asyncio.sleep(1)
         elif resp.status_code == 200:
             data = resp.json()
@@ -105,7 +112,7 @@ async def main():
     # Loop per mantenere viva la connessione WebRTC senza bloccare l'ascolto dei messaggi
     while rclpy.ok():
         rclpy.spin_once(node, timeout_sec=0.1)  # Esegui un ciclo di eventi ROS2 non bloccante
-        await asyncio.sleep(0.1)  # Mantieni il loop asincrono attivo
+        await asyncio.sleep(0.01)  # Mantieni il loop asincrono attivo
 
     # Dopo aver chiuso il nodo, termina
     node.destroy_node()
