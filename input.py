@@ -4,6 +4,10 @@ from std_msgs.msg import String
 import curses
 import time
 
+import sys
+import termios
+import tty
+
 class InputNode(Node):
     def __init__(self):
         super().__init__('input_node')
@@ -26,6 +30,7 @@ class InputNode(Node):
                 key = stdscr.getch()  # Legge un singolo tasto senza bisogno di Invio
 
                 if key != -1:  # Se è stato premuto un tasto
+
                     key_char = chr(key) if key >= 32 and key <= 126 else None  # Gestisce tasti validi
                     if key_char:
                         # Pulisce la riga prima di stampare e resetta il cursore
@@ -51,9 +56,12 @@ class InputNode(Node):
                     msg = String()
                     msg.data = "@"+self.last_time
                     self.publisher.publish(msg)
+                    
 
 
                 rclpy.spin_once(self, timeout_sec=0.1)  # Gestisce gli eventi ROS2 in modo non bloccante
+                termios.tcflush(sys.stdin, termios.TCIFLUSH)  # Questo svuota il buffer di input
+                time.sleep(0.1)
 
         except KeyboardInterrupt:
             self.get_logger().info("🛑 Interruzione con Ctrl+C, chiusura del nodo...")
