@@ -4,18 +4,18 @@ from std_msgs.msg import String
 import sys
 import asyncio
 import requests
-from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription
 
 class KeySubscriberNode(Node):
     def __init__(self):
         super().__init__('key_subscriber_node')
         self.subscription = self.create_subscription(
-            String,         # Tipo di messaggio
-            '/cmd_key',     # Nome del topic
+            String,         # messaggio string
+            '/cmd_key',     # topic
             self.listener_callback,
             10
         )
-        self.get_logger().info("✅ Nodo Subscriber avviato! In attesa di tasti pubblicati su /cmd_key...")
+        self.get_logger().info("Subscriber/Offerer ROS2: In attesa di tasti pubblicati su topic /cmd_key...")
         self.received_key = ""  # Variabile per memorizzare l'ultimo tasto ricevuto
 
     def listener_callback(self, msg):
@@ -28,7 +28,7 @@ class KeySubscriberNode(Node):
 
 
 # Variabili di configurazione per WebRTC
-ip = "10.10.11.45"
+ip = "192.168.1.122"
 port = "6969"
 SIGNALING_SERVER_URL = f'http://{ip}:{port}'
 ID = "offerer01"
@@ -56,14 +56,14 @@ async def main():
             if len(key) != 0:
 
                 if key != last_key:
-                    
+
                     last_key = key
                     channel.send(key[0])
                     if key[0] != '@':
                         sys.stdout.write("\033[F")  # Torna su una riga
                         sys.stdout.write("\033[K")  # Cancella la riga
                         print(f"Comando inviato: {key[0]}")
-                
+
             await asyncio.sleep(0.01)  # Breve attesa per evitare un loop eccessivo
 
     @channel.on("open")
@@ -81,8 +81,8 @@ async def main():
     # Invia l'offerta per WebRTC
     await peer_connection.setLocalDescription(await peer_connection.createOffer())
     message = {
-        "id": ID, 
-        "sdp": peer_connection.localDescription.sdp, 
+        "id": ID,
+        "sdp": peer_connection.localDescription.sdp,
         "type": peer_connection.localDescription.type
     }
     r = requests.post(SIGNALING_SERVER_URL + '/offer', data=message)
@@ -92,7 +92,7 @@ async def main():
     while True:
         resp = requests.get(SIGNALING_SERVER_URL + "/get_answer")
         if resp.status_code == 503:
-            print("Answer not ready, trying again")
+            print("Nodo Answerer non pronto, riprovo")
             #sys.stdout.write("\033[F")  # Torna su una riga
             #sys.stdout.write("\033[F")  # Torna su una riga
             #sys.stdout.write("\033[K")  # Cancella la riga

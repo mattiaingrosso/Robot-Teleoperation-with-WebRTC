@@ -6,65 +6,62 @@ import time
 
 import sys
 import termios
-import tty
 
 class InputNode(Node):
     def __init__(self):
         super().__init__('input_node')
-        self.publisher = self.create_publisher(String, '/cmd_key', 10)  # Pubblica solo il tasto premuto
-        self.get_logger().info("✅ Input Node ROS 2 avviato! Premi un tasto per inviarlo, Ctrl+C per uscire")
+        self.publisher = self.create_publisher(String, '/cmd_key', 10)  # Pubblica come topic solo il tasto premuto
+        self.get_logger().info("Nodo Input ROS 2: Premi un comando")
 
         self.key = None  # Variabile per memorizzare il tasto premuto
         self.last_time = time.asctime()
 
     def run_teleop(self, stdscr):
-        """Loop per leggere i tasti e pubblicarli su /cmd_key."""
+        """Loop di ingresso per pubblicazione su /cmd_key."""
         curses.curs_set(0)  # Nasconde il cursore
-        stdscr.nodelay(1)  # Non blocca la lettura dell'input
-        stdscr.clear()  # Pulisce lo schermo inizialmente
-        stdscr.refresh()  # Rende effettiva la pulizia dello schermo
+        stdscr.nodelay(1)  # Lettura dell'input non bloccante
+        stdscr.clear()  # Pulizia
+        stdscr.refresh()  # Refresha lo schermo
 
         try:
             while rclpy.ok():
-                
-                key = stdscr.getch()  # Legge un singolo tasto senza bisogno di Invio
 
-                if key != -1:  # Se è stato premuto un tasto
+                key = stdscr.getch()  # Lettura senza bisogno di mettere Invio
 
-                    key_char = chr(key) if key >= 32 and key <= 126 else None  # Gestisce tasti validi
+                if key != -1:  # Se premo
+
+                    key_char = chr(key) if key >= 32 and key <= 126 else None  # Gestisce tasti validi con gli ASCII
+
                     if key_char:
-                        # Pulisce la riga prima di stampare e resetta il cursore
+                        # Pulisce la riga prima di stampare e resetta il cursor
                         stdscr.clear()
-                        #stdscr.move(0, 10)  # Reset del cursore all'inizio
-                        stdscr.addstr(0, 0, f"📥 Tasto premuto: {key_char}")
-                        stdscr.refresh()  # Rende visibile il testo
-                        #print(f"📥 Tasto premuto: {key_char}")
-
-                        # Pubblica il tasto premuto sul topic /cmd_key
+                        stdscr.addstr(0, 0, f"Tasto premuto: {key_char}")
+                        stdscr.refresh()
+                        # Pubblicazione di key_char sul topic
                         msg = String()
                         self.last_time = str(time.asctime())
                         msg.data = key_char+" "+ self.last_time
                         self.publisher.publish(msg)
-                        stdscr.addstr(1, 0, f"📤 Tasto inviato: {msg.data}") #unico modo per stampare, aggiornare manualmente la riga
+                        stdscr.addstr(1, 0, f"Tasto inviato: {msg.data}") # unico modo per stampare, aggiornare manualmente la riga
 
 
                     elif key == 27:  # Se premi ESC (codice ASCII 27)
-                        self.get_logger().info("🛑 ESC premuto, uscita...")
+                        self.get_logger().info("ESC premuto, chiudo il nodo..")
                         break  # Esce dal loop se si preme ESC
 
                 else:
                     msg = String()
                     msg.data = "@"+self.last_time
                     self.publisher.publish(msg)
-                    
+
 
 
                 rclpy.spin_once(self, timeout_sec=0.1)  # Gestisce gli eventi ROS2 in modo non bloccante
-                termios.tcflush(sys.stdin, termios.TCIFLUSH)  # Questo svuota il buffer di input
+                termios.tcflush(sys.stdin, termios.TCIFLUSH)  # Svuota il buffer di input
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
-            self.get_logger().info("🛑 Interruzione con Ctrl+C, chiusura del nodo...")
+            self.get_logger().info("Keyboard interrupt, chiusura del nodo...")
 
 def main():
     rclpy.init()

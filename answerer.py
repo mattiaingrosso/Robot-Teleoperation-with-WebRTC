@@ -14,8 +14,8 @@ from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
 from rclpy.executors import MultiThreadedExecutor
 
-# ---- Configurazione
-ip = "10.10.11.45"
+# Variabili di configurazione per WebRTC
+ip = "192.168.1.122"
 port = "6969"
 SIGNALING_SERVER_URL = f'http://{ip}:{port}'
 ID = "answerer01"
@@ -39,17 +39,17 @@ class TurtleBot3Controller(Node):
 
     def reset_robot(self):
         """Resetta il mondo di Gazebo."""
-        self.get_logger().info("🔄 Reset del mondo in corso...")
+        self.get_logger().info("Reset del mondo in corso...")
         if self.reset_client.wait_for_service(timeout_sec=1.0):
             request = Empty.Request()
             self.reset_client.call_async(request)
-            self.get_logger().info("✅ Mondo di Gazebo ripristinato!")
+            self.get_logger().info("Mondo Gazebo ripristinato!")
         else:
-            self.get_logger().error("❌ Il servizio di reset del mondo non è disponibile!")
+            self.get_logger().error("Il servizio di reset del mondo non è disponibile!")
 
 
     def odom_callback(self, msg):
-        """Aggiorna posizione e orientazione con una stampa fluida su una sola riga."""
+        """Aggiorna posizione e orientazione con una stampa FLUIDA su riga."""
         position = msg.pose.pose.position
         orientation = msg.pose.pose.orientation
         quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
@@ -57,12 +57,6 @@ class TurtleBot3Controller(Node):
 
         self.last_position = (position.x, position.y, position.z)
         self.last_orientation = (roll, pitch, yaw)
-
-        # Cancella intera riga precedente
-        
-
-
-
         sys.stdout.flush()  # Forza l'aggiornamento immediato
 
 #---------------------------------------------------------------------------
@@ -75,7 +69,7 @@ def rob_command(key, node):
         'a': (0.0, 1.0, "Ruota a sinistra"),
         'd': (0.0, -1.0, "Ruota a destra"),
         '@': (0.0, 0.0, node.last_command),
-        'r': (0.0, 0.0, "Reset mondo")  # Comando per il reset
+        'r': (0.0, 0.0, "Reset mondo")
     }
 
     if key in commands:
@@ -83,15 +77,15 @@ def rob_command(key, node):
         if key == 'r':
             node.reset_robot()
     else:
-        velocity, angular, command = 0.0, 0.0, "❌ non valido: STOP"
-        
+        velocity, angular, command = 0.0, 0.0, "STOP"
+
 
 
     node.set_velocity(velocity, angular)
     node.last_command = command  # L'output sarà aggiornato al prossimo odom_callback
 
-    
- 
+
+
 
 def quaternion_to_euler(x, y, z, w):
     """Converte un quaternione in angoli RPY (roll, pitch, yaw)."""
@@ -122,7 +116,7 @@ async def main():
     odom = "" #dichiarazione variabile per i dat di odom
 
     os.system('clear')
-    print("🔗 Avvio connessione WebRTC...")
+    print("Avvio connessione WebRTC...")
     peer_connection = RTCPeerConnection()
     rclpy.init()
     node = TurtleBot3Controller()
@@ -138,7 +132,7 @@ async def main():
 
     @peer_connection.on("datachannel")
     def on_datachannel(channel):
-        print("\n✅ Canale aperto!")
+        print("\nCanale aperto!")
         channel.send("Connessione stabilita con peer2!")
         asyncio.create_task(send_rob_data(channel))
 
@@ -152,12 +146,11 @@ async def main():
     async def on_connection_state_change():
         print("\n🔄 Stato della connessione:", peer_connection.connectionState)
         if peer_connection.connectionState in ["disconnected", "failed", "closed"]:
-            print("❌ Connessione persa o chiusa. Il robot si fermerà.")
+            print("Connessione persa o chiusa. Il robot si fermerà.")
             node.set_velocity(0.0, 0.0)
 
 
     #Connessione WebRTC
-
     try:
         resp = requests.get(SIGNALING_SERVER_URL + "/get_offer", timeout=5)
         if resp.status_code == 200:
@@ -171,19 +164,19 @@ async def main():
                 requests.post(SIGNALING_SERVER_URL + '/answer', data=message)
 
                 print("✅ Canale WebRTC pronto!")
-                while True: 
+                while True:
                     odom = "📍Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+" | 🔄Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° |⌨️ Comando: "+str(node.last_command)
                     print(odom)
                     await asyncio.sleep(0.01)
                     sys.stdout.write("\033[F")  # Torna su una riga
                     sys.stdout.write("\033[K")  # Cancella la riga
 
-                    
+
     except requests.RequestException as e:
-        print(f"❌ Errore di connessione: {e}")
+        print(f"Errore di connessione: {e}")
         node.set_velocity(0.0, 0.0)
     finally:
-        print("\n🛑 Chiusura in corso...")
+        print("\nChiusura in corso...")
         node.set_velocity(0.0, 0.0)
         peer_connection.close()
         rclpy.shutdown()
@@ -193,5 +186,4 @@ if __name__ == "__main__":
     try:
         loop.run_until_complete(main())
     except KeyboardInterrupt:
-        print("\n🛑 Interruzione manuale, chiusura del programma...")
-        
+        print("\nInterruzione manuale, chiusura del programma...")
