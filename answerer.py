@@ -144,7 +144,7 @@ async def main():
 
     @peer_connection.on("connectionstatechange")
     async def on_connection_state_change():
-        print("\n🔄 Stato della connessione:", peer_connection.connectionState)
+        print("\n Stato della connessione:", peer_connection.connectionState)
         if peer_connection.connectionState in ["disconnected", "failed", "closed"]:
             print("Connessione persa o chiusa. Il robot si fermerà.")
             node.set_velocity(0.0, 0.0)
@@ -165,7 +165,7 @@ async def main():
 
                 print("✅ Canale WebRTC pronto!")
                 while True:
-                    odom = "📍Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+" | 🔄Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° |⌨️ Comando: "+str(node.last_command)
+                    odom = "Posizione: x="+format(node.last_position[0], ".2f")+", y="+format(node.last_position[1], ".2f")+" | Yaw = "+format(math.degrees(node.last_orientation[2]), ".2f")+"° |⌨️ Comando: "+str(node.last_command)
                     print(odom)
                     await asyncio.sleep(0.01)
                     sys.stdout.write("\033[F")  # Torna su una riga
