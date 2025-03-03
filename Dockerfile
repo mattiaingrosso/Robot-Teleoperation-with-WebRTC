@@ -1,4 +1,3 @@
-Dockerfile funzionante:
 # Usa l'immagine base ufficiale di ROS 2 Humble
 FROM ros:humble
 
@@ -49,6 +48,9 @@ RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 # Imposta il forwarding X11 per la GUI di Gazebo
 ENV DISPLAY=:0
 ENV QT_X11_NO_MITSHM=1
+
+# Dichiara un volume per i dati persistenti
+VOLUME ["/ros2_data"]
 
 # Imposta il comando di default per entrare nel bash shell
 CMD ["bash"]
