@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+import time
 import sys
 import asyncio
 import requests
@@ -27,8 +28,9 @@ class KeySubscriberNode(Node):
         return self.received_key
 
 
+ip = input("IP: ")
+
 # Variabili di configurazione per WebRTC
-ip = "192.168.1.122"
 port = "6969"
 SIGNALING_SERVER_URL = f'http://{ip}:{port}'
 ID = "offerer01"
@@ -62,7 +64,7 @@ async def main():
                     if key[0] != '@':
                         sys.stdout.write("\033[F")  # Torna su una riga
                         sys.stdout.write("\033[K")  # Cancella la riga
-                        print(f"Comando inviato: {key[0]}")
+                        print(f"Comando inviato: {key}")
 
             await asyncio.sleep(0.01)  # Breve attesa per evitare un loop eccessivo
 
@@ -74,7 +76,11 @@ async def main():
     @channel.on("message")
     async def on_message(message):
         # Gestione dei messaggi ricevuti dal peer
-        print(f"{message}")
+        print(f"{message}"+"\nTempo di ricezione (secondi): "+str(time.time()))
+        sys.stdout.write("\033[F")  # Torna su una riga
+        sys.stdout.write("\033[K")  # Cancella la riga
+        sys.stdout.write("\033[F")  # Torna su una riga
+        sys.stdout.write("\033[K")  # Cancella la riga
         sys.stdout.write("\033[F")  # Torna su una riga
         sys.stdout.write("\033[K")  # Cancella la riga
 
@@ -88,21 +94,28 @@ async def main():
     r = requests.post(SIGNALING_SERVER_URL + '/offer', data=message)
     print(r.status_code)
 
+    @peer_connection.on("connectionstatechange")
+    async def on_connection_state_change():
+        print("\n Stato della connessione:", peer_connection.connectionState)
+        print("\n\n\n\n")
+        if peer_connection.connectionState in ["disconnected", "failed", "closed"]:
+            print("Connessione persa o chiusa. Il robot non riceverà più comandi. Riavviare la procedura!")
+
     # Poll per ricevere la risposta
     while True:
         resp = requests.get(SIGNALING_SERVER_URL + "/get_answer")
         if resp.status_code == 503:
             print("Nodo Answerer non pronto, riprovo")
-            #sys.stdout.write("\033[F")  # Torna su una riga
-            #sys.stdout.write("\033[F")  # Torna su una riga
-            #sys.stdout.write("\033[K")  # Cancella la riga
+            sys.stdout.write("\033[F")  # Torna su una riga
+            sys.stdout.write("\033[F")  # Torna su una riga
+            sys.stdout.write("\033[K")  # Cancella la riga
             await asyncio.sleep(1)
         elif resp.status_code == 200:
             data = resp.json()
             if data["type"] == "answer":
                 rd = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
                 await peer_connection.setRemoteDescription(rd)
-                print("Canale aperto!")
+                sys.stdout.write("\033[K")  # Cancella la riga
                 break
             else:
                 print("Wrong type")
