@@ -14,8 +14,9 @@ from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
 from rclpy.executors import MultiThreadedExecutor
 
+ip = input("IP: ")
+
 # Variabili di configurazione per WebRTC
-ip = "192.168.1.122"
 port = "6969"
 SIGNALING_SERVER_URL = f'http://{ip}:{port}'
 ID = "answerer01"
@@ -128,7 +129,7 @@ async def main():
         while True:
             await asyncio.sleep(0.01)
             if channel.readyState == "open":
-                channel.send(odom)
+                channel.send(odom + "\nTempo di invio (secondi): "+str(time.time()))
 
     @peer_connection.on("datachannel")
     def on_datachannel(channel):
@@ -139,7 +140,8 @@ async def main():
         @channel.on("message")
         async def on_message(message):
             message = message.strip().lower()
-            rob_command(message, node)
+            rob_command(message[0], node)
+            
 
 
     @peer_connection.on("connectionstatechange")
