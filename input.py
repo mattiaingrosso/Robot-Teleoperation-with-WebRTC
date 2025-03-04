@@ -26,6 +26,7 @@ class InputNode(Node):
         try:
             while rclpy.ok():
 
+                stdscr.addstr(0, 0, "Premere WSAD per controllare il robot, R per resettare la simulazione, ESC per uscire")
                 key = stdscr.getch()  # Lettura senza bisogno di mettere Invio
 
                 if key != -1:  # Se premo
@@ -35,14 +36,14 @@ class InputNode(Node):
                     if key_char:
                         # Pulisce la riga prima di stampare e resetta il cursor
                         stdscr.clear()
-                        stdscr.addstr(0, 0, f"Tasto premuto: {key_char}")
+                        stdscr.addstr(1, 0, f"Tasto premuto: {key_char}")
                         stdscr.refresh()
                         # Pubblicazione di key_char sul topic
                         msg = String()
                         self.last_time = str(time.asctime())
                         msg.data = key_char+" "+ self.last_time
                         self.publisher.publish(msg)
-                        stdscr.addstr(1, 0, f"Tasto inviato: {msg.data}") # unico modo per stampare, aggiornare manualmente la riga
+                        stdscr.addstr(2, 0, f"Tasto inviato: {msg.data}") # unico modo per stampare, aggiornare manualmente la riga
 
 
                     elif key == 27:  # Se premi ESC (codice ASCII 27)
